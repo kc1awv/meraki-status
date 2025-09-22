@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pytest_cache/
+*.sqlite
+.env
+*.log
+node_modules/
+dist/
+build/
+.vscode/

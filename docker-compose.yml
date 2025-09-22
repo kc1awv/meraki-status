@@ -1,0 +1,53 @@
+version: "3.9"
+services:
+  api:
+    build:
+      context: ./api
+    image: meraki-sla-api:local
+    environment:
+      - SLA_DB=${SLA_DB:-/data/sla.sqlite}
+    volumes:
+      - sla_data:/data
+    ports:
+      - "${API_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',8080)); print('ok')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  monitor:
+    build:
+      context: ./monitor
+    image: meraki-sla-monitor:local
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      - PING_CONCURRENCY=${PING_CONCURRENCY:-30}
+      - SLA_API=http://api:8080
+      - OFFICES_YAML=/config/offices.yaml
+    volumes:
+      - ./offices.yaml:/config/offices.yaml:ro
+    # fping needs raw sockets – grant just NET_RAW to the container
+    cap_add:
+      - NET_RAW
+    # If you prefer to avoid capabilities, remove cap_add and the monitor will fall back to ping3.
+    # networks: # optional custom network
+    #   - meraki_net
+
+  web-react:
+    build: ./web-react
+    ports:
+      - "8089:80"           # open http://localhost:8089
+    depends_on:
+      - api
+
+volumes:
+  sla_data:
+    driver: local
+
+# networks:
+#   meraki_net:
+#     driver: bridge

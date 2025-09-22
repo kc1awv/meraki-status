@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+:root {
+    color-scheme: light;
+}
+
+
+/* small utility to mimic shadcn look */
+.card {
+    @apply bg-white border border-slate-200 shadow-sm rounded-2xl;
+}
+
+.btn {
+    @apply inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-60;
+}
+
+.btn-ghost {
+    @apply border-transparent bg-transparent hover:bg-slate-100;
+}
+
+.input {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300;
+}
+
+.badge {
+    @apply inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-0.5 text-xs;
+}
+
+.badge-deg {
+    @apply bg-amber-50 border-amber-200 text-amber-800;
+}
+
+.badge-up {
+    @apply bg-emerald-50 border-emerald-200 text-emerald-800;
+}
+
+.badge-down {
+    @apply bg-rose-50 border-rose-200 text-rose-800;
+}

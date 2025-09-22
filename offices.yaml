@@ -1,0 +1,243 @@
+interval_seconds: 5 # ICMP probe cadence
+broadcast_seconds: 15 # how often to print a status snapshot
+offices:
+  - name: Boston
+    gateway_ip: 50.234.223.113
+    mx_ip: 50.234.223.114
+    tunnel_probe_ip: 172.31.0.1
+    retries_down: 2
+    retries_up: 1
+  - name: Atlanta
+    gateway_ip: 50.238.245.1
+    mx_ip: 50.238.245.2
+    tunnel_probe_ip: 172.31.30.1
+    retries_down: 2
+    retries_up: 1
+  - name: Augusta
+    gateway_ip: 70.88.29.33
+    mx_ip: 70.88.29.34
+    tunnel_probe_ip: 172.31.31.1
+    retries_down: 2
+    retries_up: 1
+  - name: Baltimore
+    gateway_ip: 50.76.0.41
+    mx_ip: 50.76.0.46
+    tunnel_probe_ip: 172.31.32.1
+    retries_down: 2
+    retries_up: 1
+  - name: Baton Rouge
+    gateway_ip: 184.178.211.225
+    mx_ip: 184.178.211.235
+    tunnel_probe_ip: 172.31.34.1
+    retries_down: 2
+    retries_up: 1
+  - name: Birmingham
+    gateway_ip: 99.28.22.102
+    mx_ip: 99.28.22.97
+    tunnel_probe_ip: 172.31.33.1
+    retries_down: 2
+    retries_up: 1
+  - name: Buffalo
+    gateway_ip: 24.97.119.65
+    mx_ip: 24.97.119.66
+    tunnel_probe_ip: 172.31.35.1
+    retries_down: 2
+    retries_up: 1
+  - name: Charlotte
+    gateway_ip: 50.168.128.9
+    mx_ip: 50.168.128.10
+    tunnel_probe_ip: 172.31.37.1
+    retries_down: 2
+    retries_up: 1
+  - name: Counseling Center
+    gateway_ip: 76.248.79.174
+    mx_ip: 76.248.79.173
+    tunnel_probe_ip: 172.31.36.1
+    retries_down: 2
+    retries_up: 1
+  - name: Chicago
+    gateway_ip: 173.167.137.246
+    mx_ip: 173.167.137.241
+    tunnel_probe_ip: 172.31.38.1
+    retries_down: 2
+    retries_up: 1
+  - name: Cleveland
+    gateway_ip: 107.209.147.158
+    mx_ip: 107.209.147.153
+    tunnel_probe_ip: 172.31.40.1
+    retries_down: 2
+    retries_up: 1
+  - name: Columbia
+    gateway_ip: 173.95.18.57
+    mx_ip: 173.95.18.58
+    tunnel_probe_ip: 172.31.41.1
+    retries_down: 2
+    retries_up: 1
+  - name: Dallas
+    gateway_ip: 50.84.221.73
+    mx_ip: 50.84.221.74
+    tunnel_probe_ip: 172.31.42.1
+    retries_down: 2
+    retries_up: 1
+  - name: Detroit
+    gateway_ip: 50.77.237.206
+    mx_ip: 50.77.237.201
+    tunnel_probe_ip: 172.31.43.1
+    retries_down: 2
+    retries_up: 1
+  - name: Hartford
+    gateway_ip: 50.187.169.198
+    mx_ip: 50.187.169.193
+    tunnel_probe_ip: 172.31.45.1
+    retries_down: 2
+    retries_up: 1
+  - name: Houston
+    gateway_ip: 50.190.149.30
+    mx_ip: 50.190.149.25
+    tunnel_probe_ip: 172.31.46.1
+    retries_down: 2
+    retries_up: 1
+  - name: Jackson
+    gateway_ip: 50.252.172.94
+    mx_ip: 50.252.172.89
+    tunnel_probe_ip: 172.31.47.1
+    retries_down: 2
+    retries_up: 1
+  - name: Jacksonville
+    gateway_ip: 50.184.228.246
+    mx_ip: 50.184.228.241
+    tunnel_probe_ip: 172.31.48.1
+    retries_down: 2
+    retries_up: 1
+  - name: Kansas City
+    gateway_ip: 173.197.11.185
+    mx_ip: 173.197.11.186
+    tunnel_probe_ip: 172.31.49.1
+    retries_down: 2
+    retries_up: 1
+  - name: Las Vegas
+    gateway_ip: 98.191.33.65
+    mx_ip: 98.191.33.67
+    tunnel_probe_ip: 172.31.50.1
+    retries_down: 2
+    retries_up: 1
+  - name: Little Rock
+    gateway_ip: 96.67.72.246
+    mx_ip: 96.67.72.241
+    tunnel_probe_ip: 172.31.52.1
+    retries_down: 2
+    retries_up: 1
+  - name: Los Angeles
+    gateway_ip: 104.173.192.1
+    mx_ip: 104.173.201.235
+    tunnel_probe_ip: 172.31.53.1
+    retries_down: 2
+    retries_up: 1
+  - name: Memphis
+    gateway_ip: 50.246.155.182
+    mx_ip: 50.246.155.177
+    tunnel_probe_ip: 172.31.54.1
+    retries_down: 2
+    retries_up: 1
+  - name: Milwaukee
+    gateway_ip: 45.18.91.30
+    mx_ip: 45.18.91.25
+    tunnel_probe_ip: 172.31.56.1
+    retries_down: 2
+    retries_up: 1
+  - name: Minneapolis
+    gateway_ip: 96.72.53.230
+    mx_ip: 96.72.53.225
+    tunnel_probe_ip: 172.31.57.1
+    retries_down: 2
+    retries_up: 1
+  - name: New Orleans
+    gateway_ip: 98.171.199.193
+    mx_ip: 98.171.199.198
+    tunnel_probe_ip: 172.31.58.1
+    retries_down: 2
+    retries_up: 1
+  - name: Newark
+    gateway_ip: 108.5.159.1
+    mx_ip: 108.5.159.121
+    tunnel_probe_ip: 172.31.59.1
+    retries_down: 2
+    retries_up: 1
+  - name: North Charleston
+    gateway_ip: 96.72.151.190
+    mx_ip: 96.72.151.185
+    tunnel_probe_ip: 172.31.39.1
+    retries_down: 2
+    retries_up: 1
+  - name: Orlando
+    gateway_ip: 96.94.18.110
+    mx_ip: 96.94.18.105
+    tunnel_probe_ip: 172.31.61.1
+    retries_down: 2
+    retries_up: 1
+  - name: Philadelphia
+    gateway_ip: 50.196.63.206
+    mx_ip: 50.196.63.201
+    tunnel_probe_ip: 172.31.62.1
+    retries_down: 2
+    retries_up: 1
+  - name: Phoenix
+    gateway_ip: 70.186.118.129
+    mx_ip: 70.186.118.135
+    tunnel_probe_ip: 172.31.11.1
+    retries_down: 2
+    retries_up: 1
+  - name: Raleigh
+    gateway_ip: 107.200.244.110
+    mx_ip: 107.200.244.105
+    tunnel_probe_ip: 172.31.64.1
+    retries_down: 2
+    retries_up: 1
+  - name: Richmond
+    gateway_ip: 23.25.109.182
+    mx_ip: 23.25.109.177
+    tunnel_probe_ip: 172.31.72.1
+    retries_down: 2
+    retries_up: 1
+  - name: Rochester
+    gateway_ip: 151.181.192.233
+    mx_ip: 151.181.192.234
+    tunnel_probe_ip: 172.31.65.1
+    retries_down: 2
+    retries_up: 1
+  - name: Sacramento
+    gateway_ip: 76.212.84.182
+    mx_ip: 76.212.84.177
+    tunnel_probe_ip: 172.31.73.1
+    retries_down: 2
+    retries_up: 1
+  - name: San Antonio
+    gateway_ip: 50.229.217.201
+    mx_ip: 50.229.217.202
+    tunnel_probe_ip: 172.31.66.1
+    retries_down: 2
+    retries_up: 1
+  - name: St. Louis
+    gateway_ip: 107.135.15.198
+    mx_ip: 107.135.15.193
+    tunnel_probe_ip: 172.31.67.1
+    retries_down: 2
+    retries_up: 1
+  - name: Tampa
+    gateway_ip: 97.71.169.41
+    mx_ip: 97.71.169.42
+    tunnel_probe_ip: 172.31.68.1
+    retries_down: 2
+    retries_up: 1
+  - name: Upland
+    gateway_ip: 69.75.185.17
+    mx_ip: 69.75.185.18
+    tunnel_probe_ip: 172.31.69.1
+    retries_down: 2
+    retries_up: 1
+  - name: Washington DC
+    gateway_ip: 50.79.1.230
+    mx_ip: 50.79.1.235
+    tunnel_probe_ip: 172.31.70.1
+    retries_down: 2
+    retries_up: 1
