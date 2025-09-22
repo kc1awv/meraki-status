@@ -85,13 +85,14 @@ const OfficeMap: React.FC<{ offices: OfficePoint[] }> = ({ offices }) => {
     return (
         <div className="flex h-full flex-col gap-4">
             <div className="relative w-full overflow-hidden rounded-lg bg-slate-950/5">
-                <ComposableMap
-                    projection="geoAlbersUsa"
-                    projectionConfig={{ scale: 1000 }}
-                    width={800}
-                    height={500}
-                    style={{ width: '100%', height: 'auto' }}
-                >
+                <div className="aspect-[16/7] w-full">
+                    <ComposableMap
+                        projection="geoAlbersUsa"
+                        projectionConfig={{ scale: 1000 }}
+                        width={800}
+                        height={500}
+                        style={{ width: '100%', height: '100%' }}
+                    >
                     <Geographies geography={statesFeatures}>
                         {({ geographies }) =>
                             geographies.map((geo) => (
@@ -107,19 +108,20 @@ const OfficeMap: React.FC<{ offices: OfficePoint[] }> = ({ offices }) => {
                         }
                     </Geographies>
                     {markers.map((marker) => (
-                        <Marker key={marker.name} coordinates={marker.coordinates}>
-                            <circle r={6} fill={STATUS_COLORS[marker.status]} stroke="#0f172a" strokeWidth={1.5} />
-                            <text
-                                textAnchor="middle"
-                                y={-12}
-                                className="fill-slate-700 text-[10px] font-semibold"
-                                style={{ pointerEvents: 'none' }}
-                            >
-                                {marker.name}
-                            </text>
-                        </Marker>
-                    ))}
-                </ComposableMap>
+                            <Marker key={marker.name} coordinates={marker.coordinates}>
+                                <circle r={6} fill={STATUS_COLORS[marker.status]} stroke="#0f172a" strokeWidth={1.5} />
+                                <text
+                                    textAnchor="middle"
+                                    y={-12}
+                                    className="fill-slate-700 text-[10px] font-semibold"
+                                    style={{ pointerEvents: 'none' }}
+                                >
+                                    {marker.name}
+                                </text>
+                            </Marker>
+                        ))}
+                    </ComposableMap>
+                </div>
             </div>
             <div className="flex flex-wrap gap-4 text-sm text-slate-600">
                 {Object.entries(STATUS_COLORS).map(([status, color]) => (

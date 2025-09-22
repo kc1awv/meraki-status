@@ -191,7 +191,7 @@ const MerakiStatusDashboard: React.FC = () => {
     }, [knownOffices, rows, office])
 
     return (
-        <div className="min-h-screen bg-slate-100 py-10">
+        <div className="min-h-screen bg-slate-100 py-6">
             <div className="mx-auto flex w-full max-w-full flex-col gap-6 px-4 lg:px-8">
                 <header className="flex flex-col gap-2">
                     <h1 className="text-3xl font-semibold text-slate-900">NACA Office Network Health</h1>
@@ -272,7 +272,7 @@ const MerakiStatusDashboard: React.FC = () => {
                             <CardTitle>Office status breakdown</CardTitle>
                             <CardDescription>Current operating state for each location</CardDescription>
                         </CardHeader>
-                        <CardContent className="overflow-x-auto">
+                        <CardContent className="overflow-x-auto lg:max-h-[360px] lg:overflow-y-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -281,7 +281,7 @@ const MerakiStatusDashboard: React.FC = () => {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {rows.map((row) => {
+                                    {sortedRows.map((row) => {
                                         const badge = stateBadgeVariant(row)
                                         return (
                                             <TableRow key={row.office}>
