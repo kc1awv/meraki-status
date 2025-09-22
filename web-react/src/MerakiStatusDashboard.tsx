@@ -261,7 +261,7 @@ const MerakiStatusDashboard: React.FC = () => {
                     <Card className="lg:col-span-2">
                         <CardHeader>
                             <CardTitle>Office map</CardTitle>
-                            <CardDescription>Geographic view of current office health.</CardDescription>
+                            <CardDescription>Geographic view of current office health</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <OfficeMap offices={officePoints} />
@@ -270,7 +270,7 @@ const MerakiStatusDashboard: React.FC = () => {
                     <Card className="lg:col-span-1">
                         <CardHeader>
                             <CardTitle>Office status breakdown</CardTitle>
-                            <CardDescription>Current operating state for each location.</CardDescription>
+                            <CardDescription>Current operating state for each location</CardDescription>
                         </CardHeader>
                         <CardContent className="overflow-x-auto">
                             <Table>
