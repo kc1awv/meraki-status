@@ -24,7 +24,9 @@ def init():
       name TEXT UNIQUE NOT NULL,
       gateway_ip TEXT NOT NULL,
       mx_ip TEXT NOT NULL,
-      tunnel_probe_ip TEXT NOT NULL
+      tunnel_probe_ip TEXT NOT NULL,
+      retries_down INTEGER NOT NULL DEFAULT 2,
+      retries_up INTEGER NOT NULL DEFAULT 1
     );
     CREATE TABLE IF NOT EXISTS state_changes (
       id INTEGER PRIMARY KEY,
@@ -52,6 +54,18 @@ def init():
     """
     )
     conn.commit()
+    
+    # migrations: ensure retry threshold columns exist
+    cols = {row["name"] for row in cur.execute("PRAGMA table_info(offices)")}
+    if "retries_down" not in cols:
+        cur.execute(
+            "ALTER TABLE offices ADD COLUMN retries_down INTEGER NOT NULL DEFAULT 2"
+        )
+    if "retries_up" not in cols:
+        cur.execute(
+            "ALTER TABLE offices ADD COLUMN retries_up INTEGER NOT NULL DEFAULT 1"
+        )
+    conn.commit()
     conn.close()
 
 
@@ -63,6 +77,8 @@ class OfficeIn(BaseModel):
     gateway_ip: str
     mx_ip: str
     tunnel_probe_ip: str
+    retries_down: int = 2
+    retries_up: int = 1
 
 
 class TickSample(BaseModel):
@@ -96,8 +112,18 @@ def ensure_office(conn, o: OfficeIn) -> int:
     if row := c.fetchone():
         return row["id"]
     c.execute(
-        "INSERT INTO offices(name,gateway_ip,mx_ip,tunnel_probe_ip) VALUES (?,?,?,?)",
-        (o.name, o.gateway_ip, o.mx_ip, o.tunnel_probe_ip),
+        """
+        INSERT INTO offices(name,gateway_ip,mx_ip,tunnel_probe_ip,retries_down,retries_up)
+        VALUES (?,?,?,?,?,?)
+        """,
+        (
+            o.name,
+            o.gateway_ip,
+            o.mx_ip,
+            o.tunnel_probe_ip,
+            o.retries_down,
+            o.retries_up,
+        ),
     )
     conn.commit()
     return c.lastrowid
@@ -110,12 +136,14 @@ def upsert_office(o: OfficeIn):
         c = conn.cursor()
         c.execute(
             """
-            INSERT INTO offices(name,gateway_ip,mx_ip,tunnel_probe_ip)
-            VALUES (:name,:gateway_ip,:mx_ip,:tunnel_probe_ip)
+            INSERT INTO offices(name,gateway_ip,mx_ip,tunnel_probe_ip,retries_down,retries_up)
+            VALUES (:name,:gateway_ip,:mx_ip,:tunnel_probe_ip,:retries_down,:retries_up)
             ON CONFLICT(name) DO UPDATE SET
                 gateway_ip=excluded.gateway_ip,
                 mx_ip=excluded.mx_ip,
-                tunnel_probe_ip=excluded.tunnel_probe_ip
+                tunnel_probe_ip=excluded.tunnel_probe_ip,
+                retries_down=excluded.retries_down,
+                retries_up=excluded.retries_up
         """,
             o.model_dump(),
         )

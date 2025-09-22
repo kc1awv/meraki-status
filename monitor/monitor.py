@@ -102,11 +102,22 @@ def load_yaml_config(path: str) -> dict:
         return yaml.safe_load(f)
 
 
+def _office_default(field: str):
+    return Office.__dataclass_fields__[field].default
+
 def hash_office_record(o: dict) -> str:
     # stable hash of relevant identity/fields (change if you add more columns)
     h = hashlib.sha256()
-    for k in ("name", "gateway_ip", "mx_ip", "tunnel_probe_ip"):
-        h.update(str(o.get(k, "")).encode())
+    for k in (
+        "name",
+        "gateway_ip",
+        "mx_ip",
+        "tunnel_probe_ip",
+        "retries_down",
+        "retries_up",
+    ):
+        default = _office_default(k) if k.startswith("retries_") else ""
+        h.update(str(o.get(k, default)).encode())
         h.update(b"|")
     return h.hexdigest()
 
@@ -159,6 +170,8 @@ class OfficeManager:
                         "gateway_ip": o.gateway_ip,
                         "mx_ip": o.mx_ip,
                         "tunnel_probe_ip": o.tunnel_probe_ip,
+                        "retries_down": o.retries_down,
+                        "retries_up": o.retries_up,
                     },
                 )
             elif self._hashes.get(name) != h:
@@ -167,6 +180,8 @@ class OfficeManager:
                 o.gateway_ip = rec["gateway_ip"]
                 o.mx_ip = rec["mx_ip"]
                 o.tunnel_probe_ip = rec["tunnel_probe_ip"]
+                o.retries_down = rec.get("retries_down", _office_default("retries_down"))
+                o.retries_up = rec.get("retries_up", _office_default("retries_up"))
                 self._hashes[name] = h
                 await self.ingestor.post_json(
                     "/offices",
@@ -175,6 +190,8 @@ class OfficeManager:
                         "gateway_ip": o.gateway_ip,
                         "mx_ip": o.mx_ip,
                         "tunnel_probe_ip": o.tunnel_probe_ip,
+                        "retries_down": o.retries_down,
+                        "retries_up": o.retries_up,
                     },
                 )
 
