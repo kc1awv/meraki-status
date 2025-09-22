@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import OfficeMap, { type OfficePoint, type OfficeStatus } from './components/OfficeMap'
 import { Badge } from './components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/ui/table'
@@ -35,12 +36,12 @@ const RANGE_OPTIONS: RangeOption[] = [
 
 const stateBadgeVariant = (row: SlaRow) => {
     if (row.sec_down > 0) {
-        return { variant: 'destructive' as const, label: 'Down' }
+        return { variant: 'destructive' as const, label: 'Down', status: 'down' as OfficeStatus }
     }
     if (row.sec_deg > 0) {
-        return { variant: 'secondary' as const, label: 'Degraded' }
+        return { variant: 'secondary' as const, label: 'Degraded', status: 'degraded' as OfficeStatus }
     }
-    return { variant: 'default' as const, label: 'Up' }
+    return { variant: 'default' as const, label: 'Up', status: 'up' as OfficeStatus }
 }
 
 
@@ -132,6 +133,13 @@ const MerakiStatusDashboard: React.FC = () => {
 
     const rows = data?.sla ?? []
 
+    const officePoints = useMemo<OfficePoint[]>(() => {
+        return rows.map((row) => {
+            const badge = stateBadgeVariant(row)
+            return { name: row.office, status: badge.status }
+        })
+    }, [rows])
+
     const sortedRows = useMemo(() => {
         const getStatePriority = (row: SlaRow) => {
             if (row.sec_down > 0) {
@@ -184,7 +192,7 @@ const MerakiStatusDashboard: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-100 py-10">
-            <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4">
+            <div className="mx-auto flex w-full max-w-full flex-col gap-6 px-4 lg:px-8">
                 <header className="flex flex-col gap-2">
                     <h1 className="text-3xl font-semibold text-slate-900">NACA Office Network Health</h1>
                     <p className="text-slate-600">
@@ -249,52 +257,53 @@ const MerakiStatusDashboard: React.FC = () => {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Office status breakdown</CardTitle>
-                        <CardDescription>
-                            View uptime and downtime distribution for each location.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="p-3">Office</TableHead>
-                                    <TableHead className="p-3">Current state</TableHead>
-                                    <TableHead className="p-3">Strict uptime</TableHead>
-                                    <TableHead className="p-3">Lenient uptime</TableHead>
-                                    <TableHead className="p-3">Degraded</TableHead>
-                                    <TableHead className="p-3">Down</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {sortedRows.map((row) => {
-                                    const badge = stateBadgeVariant(row)
-                                    return (
-                                        <TableRow key={row.office}>
-                                            <TableCell className="p-3 font-medium text-slate-900">{row.office}</TableCell>
-                                            <TableCell className="p-3">
-                                                <Badge variant={badge.variant}>{badge.label}</Badge>
-                                            </TableCell>
-                                            <TableCell className="p-3 font-mono text-sm">{formatPercent(row.uptime_strict)}</TableCell>
-                                            <TableCell className="p-3 font-mono text-sm">{formatPercent(row.uptime_lenient)}</TableCell>
-                                            <TableCell className="p-3 text-sm text-slate-600">{formatDuration(row.sec_deg)}</TableCell>
-                                            <TableCell className="p-3 text-sm text-slate-600">{formatDuration(row.sec_down)}</TableCell>
-                                        </TableRow>
-                                    )
-                                })}
-                                {!rows.length && (
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <Card className="lg:col-span-2">
+                        <CardHeader>
+                            <CardTitle>Office map</CardTitle>
+                            <CardDescription>Geographic view of current office health.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <OfficeMap offices={officePoints} />
+                        </CardContent>
+                    </Card>
+                    <Card className="lg:col-span-1">
+                        <CardHeader>
+                            <CardTitle>Office status breakdown</CardTitle>
+                            <CardDescription>Current operating state for each location.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={6} className="p-6 text-center text-sm text-slate-500">
-                                            {loading ? 'Loading results…' : 'No results to display.'}
-                                        </TableCell>
+                                        <TableHead className="w-2/3 p-3">Office</TableHead>
+                                        <TableHead className="w-1/3 p-3">Status</TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                                </TableHeader>
+                                <TableBody>
+                                    {rows.map((row) => {
+                                        const badge = stateBadgeVariant(row)
+                                        return (
+                                            <TableRow key={row.office}>
+                                                <TableCell className="p-3 font-medium text-slate-900">{row.office}</TableCell>
+                                                <TableCell className="p-3">
+                                                    <Badge variant={badge.variant}>{badge.label}</Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    })}
+                                    {!rows.length && (
+                                        <TableRow>
+                                            <TableCell colSpan={2} className="p-6 text-center text-sm text-slate-500">
+                                                {loading ? 'Loading results…' : 'No results to display.'}
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </div>
     )
