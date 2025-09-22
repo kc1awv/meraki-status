@@ -84,7 +84,7 @@ const OfficeMap: React.FC<{ offices: OfficePoint[] }> = ({ offices }) => {
 
     return (
         <div className="flex h-full flex-col gap-4">
-            <div className="relative w-full overflow-hidden rounded-lg bg-slate-950/5">
+            <div className="relative w-full overflow-hidden rounded-lg border border-slate-800 bg-slate-950/40">
                 <div className="aspect-[16/7] w-full">
                     <ComposableMap
                         projection="geoAlbersUsa"
@@ -99,9 +99,9 @@ const OfficeMap: React.FC<{ offices: OfficePoint[] }> = ({ offices }) => {
                                 <Geography
                                     key={geo.rsmKey}
                                     geography={geo}
-                                    stroke="#e2e8f0"
+                                    stroke="#1e293b"
                                     strokeWidth={0.5}
-                                    fill="#f8fafc"
+                                    fill="#0f172a"
                                     style={{ default: { outline: 'none' }, hover: { outline: 'none' }, pressed: { outline: 'none' } }}
                                 />
                             ))
@@ -109,11 +109,11 @@ const OfficeMap: React.FC<{ offices: OfficePoint[] }> = ({ offices }) => {
                     </Geographies>
                     {markers.map((marker) => (
                             <Marker key={marker.name} coordinates={marker.coordinates}>
-                                <circle r={6} fill={STATUS_COLORS[marker.status]} stroke="#0f172a" strokeWidth={1.5} />
+                                <circle r={6} fill={STATUS_COLORS[marker.status]} stroke="#f8fafc" strokeWidth={1.5} />
                                 <text
                                     textAnchor="middle"
                                     y={-12}
-                                    className="fill-slate-700 text-[10px] font-semibold"
+                                    className="fill-slate-200 text-[10px] font-semibold drop-shadow"
                                     style={{ pointerEvents: 'none' }}
                                 >
                                     {marker.name}
@@ -123,7 +123,7 @@ const OfficeMap: React.FC<{ offices: OfficePoint[] }> = ({ offices }) => {
                     </ComposableMap>
                 </div>
             </div>
-            <div className="flex flex-wrap gap-4 text-sm text-slate-600">
+            <div className="flex flex-wrap gap-4 text-sm text-slate-300">
                 {Object.entries(STATUS_COLORS).map(([status, color]) => (
                     <div key={status} className="flex items-center gap-2">
                         <span className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
@@ -132,7 +132,7 @@ const OfficeMap: React.FC<{ offices: OfficePoint[] }> = ({ offices }) => {
                 ))}
             </div>
             {!markers.length && (
-                <div className="rounded-md border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">
+                <div className="rounded-md border border-dashed border-slate-700 bg-slate-900 p-4 text-sm text-slate-400">
                     No offices available for the selected filters.
                 </div>
             )}

@@ -4,39 +4,39 @@
 
 
 :root {
-    color-scheme: light;
+    color-scheme: dark;
 }
 
 
 /* small utility to mimic shadcn look */
 .card {
-    @apply bg-white border border-slate-200 shadow-sm rounded-2xl;
+    @apply rounded-2xl border border-slate-800 bg-slate-900/80 shadow-xl backdrop-blur
 }
 
 .btn {
-    @apply inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-60;
+    @apply inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-medium text-slate-100 transition-colors hover:bg-slate-700 disabled:opacity-60;
 }
 
 .btn-ghost {
-    @apply border-transparent bg-transparent hover:bg-slate-100;
+    @apply border-transparent bg-transparent text-slate-300 hover:bg-slate-800;
 }
 
 .input {
-    @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300;
+    @apply w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-slate-500;
 }
 
 .badge {
-    @apply inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-0.5 text-xs;
+    @apply inline-flex items-center gap-1 rounded-full border border-slate-700 px-2.5 py-0.5 text-xs text-slate-200;
 }
 
 .badge-deg {
-    @apply bg-amber-50 border-amber-200 text-amber-800;
+    @apply border-amber-400/40 bg-amber-500/10 text-amber-200;
 }
 
 .badge-up {
-    @apply bg-emerald-50 border-emerald-200 text-emerald-800;
+    @apply border-emerald-400/40 bg-emerald-500/10 text-emerald-200;
 }
 
 .badge-down {
-    @apply bg-rose-50 border-rose-200 text-rose-800;
+    @apply border-rose-400/40 bg-rose-500/10 text-rose-200;
 }

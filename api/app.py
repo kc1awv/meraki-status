@@ -108,14 +108,17 @@ def upsert_office(o: OfficeIn):
     conn = db()
     try:
         c = conn.cursor()
-        c.execute("""
+        c.execute(
+            """
             INSERT INTO offices(name,gateway_ip,mx_ip,tunnel_probe_ip)
             VALUES (:name,:gateway_ip,:mx_ip,:tunnel_probe_ip)
             ON CONFLICT(name) DO UPDATE SET
                 gateway_ip=excluded.gateway_ip,
                 mx_ip=excluded.mx_ip,
                 tunnel_probe_ip=excluded.tunnel_probe_ip
-        """, o.model_dump())
+        """,
+            o.model_dump(),
+        )
         conn.commit()
         # return id for convenience
         row = c.execute("SELECT id FROM offices WHERE name=?", (o.name,)).fetchone()
@@ -218,17 +221,43 @@ def sla(
                  state
           FROM sc
           WHERE next_ts > :t_start
+        ),
+        sla AS (
+          SELECT o.name AS office,
+                 SUM(CASE WHEN state='up' THEN seg_end-seg_start ELSE 0 END) AS sec_up,
+                 SUM(CASE WHEN state='degraded' THEN seg_end-seg_start ELSE 0 END) AS sec_deg,
+                 SUM(CASE WHEN state='down' THEN seg_end-seg_start ELSE 0 END) AS sec_down,
+                 (:t_end - :t_start) AS sec_total
+          FROM scw
+          JOIN offices o ON o.id = scw.office_id
+          WHERE 1=1 {param_office}
+          GROUP BY o.name
+        ),
+        latest AS (
+          SELECT o.name AS office,
+                 s.to_state AS current_state,
+                 s.at_ts AS current_at,
+                 s.from_state AS previous_state
+          FROM (
+            SELECT office_id, to_state, at_ts, from_state,
+                   ROW_NUMBER() OVER (PARTITION BY office_id ORDER BY at_ts DESC) AS rn
+            FROM state_changes
+            WHERE at_ts <= :t_end
+          ) s
+          JOIN offices o ON o.id = s.office_id
+          WHERE rn = 1
         )
-        SELECT o.name AS office,
-               SUM(CASE WHEN state='up' THEN seg_end-seg_start ELSE 0 END) AS sec_up,
-               SUM(CASE WHEN state='degraded' THEN seg_end-seg_start ELSE 0 END) AS sec_deg,
-               SUM(CASE WHEN state='down' THEN seg_end-seg_start ELSE 0 END) AS sec_down,
-               (:t_end - :t_start) AS sec_total
-        FROM scw
-        JOIN offices o ON o.id = scw.office_id
-        WHERE 1=1 {param_office}
-        GROUP BY o.name
-        ORDER BY o.name;
+        SELECT sla.office,
+               sla.sec_up,
+               sla.sec_deg,
+               sla.sec_down,
+               sla.sec_total,
+               latest.current_state,
+               latest.current_at,
+               latest.previous_state
+        FROM sla
+        LEFT JOIN latest ON latest.office = sla.office
+        ORDER BY sla.office;
         """
         rows = [dict(r) for r in c.execute(sql, args).fetchall()]
         for r in rows:

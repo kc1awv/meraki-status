@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/ui/table'
 
 
+type KnownOfficeState = OfficeStatus | 'unknown'
+
 type SlaRow = {
     office: string
     sec_up: number
@@ -13,6 +15,9 @@ type SlaRow = {
     sec_total: number
     uptime_strict: number
     uptime_lenient: number
+    current_state?: KnownOfficeState | null
+    current_at?: number | null
+    previous_state?: KnownOfficeState | null
 }
 
 type SlaResponse = {
@@ -34,16 +39,34 @@ const RANGE_OPTIONS: RangeOption[] = [
 ]
 
 
-const stateBadgeVariant = (row: SlaRow) => {
-    if (row.sec_down > 0) {
-        return { variant: 'destructive' as const, label: 'Down', status: 'down' as OfficeStatus }
+const badgeForState = (state: OfficeStatus) => {
+    if (state === 'down') {
+        return { variant: 'destructive' as const, label: 'Down' }
     }
-    if (row.sec_deg > 0) {
-        return { variant: 'secondary' as const, label: 'Degraded', status: 'degraded' as OfficeStatus }
+    if (state === 'degraded') {
+        return { variant: 'secondary' as const, label: 'Degraded' }
     }
-    return { variant: 'default' as const, label: 'Up', status: 'up' as OfficeStatus }
+    return { variant: 'default' as const, label: 'Up' }
 }
 
+const resolveCurrentState = (row: SlaRow): OfficeStatus => {
+    if (row.current_state === 'down' || row.current_state === 'degraded' || row.current_state === 'up') {
+        return row.current_state
+    }
+    if (row.sec_down > 0) {
+        return 'down'
+    }
+    if (row.sec_deg > 0) {
+        return 'degraded'
+    }
+    return 'up'
+}
+
+type EnrichedRow = SlaRow & {
+    resolvedState: OfficeStatus
+    changedAt: number | null
+    previousState: KnownOfficeState | null
+}
 
 const formatPercent = (value: number) => `${(value * 100).toFixed(3)}%`
 
@@ -75,6 +98,17 @@ const formatDuration = (seconds: number) => {
 }
 
 
+const formatRelativeTime = (seconds: number) => {
+    const delta = Math.max(0, Math.round(seconds))
+    if (delta <= 1) {
+        return 'just now'
+    }
+    if (delta < 60) {
+        return `${delta}s ago`
+    }
+    return `${formatDuration(delta)} ago`
+}
+
 const formatWindow = (window: SlaResponse['window']) => {
     const start = new Date(window.t_start * 1000)
     const end = new Date(window.t_end * 1000)
@@ -89,6 +123,7 @@ const MerakiStatusDashboard: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(false)
     const [error, setError] = useState<string | null>(null)
     const [knownOffices, setKnownOffices] = useState<string[]>([])
+    const [now, setNow] = useState<number>(() => Date.now())
 
     const refresh = useCallback(async () => {
         const selectedRange = RANGE_OPTIONS.find((item) => item.value === range) ?? RANGE_OPTIONS[0]
@@ -131,40 +166,60 @@ const MerakiStatusDashboard: React.FC = () => {
         return () => clearInterval(interval)
     }, [refresh])
 
+    useEffect(() => {
+        const tick = setInterval(() => setNow(Date.now()), 1_000)
+        return () => clearInterval(tick)
+    }, [])
+
     const rows = data?.sla ?? []
+    const nowSeconds = Math.floor(now / 1000)
+
+    const enrichedRows = useMemo<EnrichedRow[]>(() => {
+        return rows.map((row) => ({
+            ...row,
+            resolvedState: resolveCurrentState(row),
+            changedAt: row.current_at ?? null,
+            previousState: row.previous_state ?? null,
+        }))
+    }, [rows])
 
     const officePoints = useMemo<OfficePoint[]>(() => {
-        return rows.map((row) => {
-            const badge = stateBadgeVariant(row)
-            return { name: row.office, status: badge.status }
-        })
-    }, [rows])
+        return enrichedRows.map((row) => ({ name: row.office, status: row.resolvedState }))
+    }, [enrichedRows])
 
-    const sortedRows = useMemo(() => {
-        const getStatePriority = (row: SlaRow) => {
-            if (row.sec_down > 0) {
-                return 0
-            }
-            if (row.sec_deg > 0) {
-                return 1
-            }
-            return 2
-        }
-
-        return [...rows].sort((a, b) => {
-            const priorityDiff = getStatePriority(a) - getStatePriority(b)
-            if (priorityDiff !== 0) {
-                return priorityDiff
-            }
-            return a.office.localeCompare(b.office)
-        })
-    }, [rows])
+    const statusRows = useMemo(() => {
+        const severity: Record<OfficeStatus, number> = { down: 0, degraded: 1, up: 2 }
+        return enrichedRows
+            .filter((row) => {
+                if (row.resolvedState !== 'up') {
+                    return true
+                }
+                if (!row.changedAt) {
+                    return false
+                }
+                const diff = nowSeconds - row.changedAt
+                const cameFromIncident = row.previousState === 'down' || row.previousState === 'degraded'
+                return cameFromIncident && diff <= 5 * 60
+            })
+            .sort((a, b) => {
+                const severityDiff = severity[a.resolvedState] - severity[b.resolvedState]
+                if (severityDiff !== 0) {
+                    return severityDiff
+                }
+                const timeA = a.changedAt ?? 0
+                const timeB = b.changedAt ?? 0
+                if (timeA !== timeB) {
+                    return timeB - timeA
+                }
+                return a.office.localeCompare(b.office)
+            })
+    }, [enrichedRows, nowSeconds])
 
     const summary = useMemo(() => {
-        if (!rows.length) {
+        if (!enrichedRows.length) {
             return null
         }
-        const totals = rows.reduce(
+        const totals = enrichedRows.reduce(
             (acc, row) => {
                 acc.up += row.sec_up
                 acc.deg += row.sec_deg
@@ -179,23 +234,23 @@ const MerakiStatusDashboard: React.FC = () => {
             strict: totals.up / denominator,
             lenient: (totals.up + totals.deg) / denominator,
             downtime: totals.down,
-            offices: rows.length,
+            offices: enrichedRows.length,
         }
-    }, [rows])
+    }, [enrichedRows])
 
     const windowLabel = data ? formatWindow(data.window) : null
     const officeOptions = useMemo(() => {
-        const current = rows.map((row) => row.office)
+        const current = enrichedRows.map((row) => row.office)
         const merged = Array.from(new Set([...knownOffices, ...current, office !== 'all' ? office : null].filter(Boolean) as string[]))
         return merged.sort((a, b) => a.localeCompare(b))
-    }, [knownOffices, rows, office])
+    }, [knownOffices, enrichedRows, office])
 
     return (
-        <div className="min-h-screen bg-slate-100 py-6">
+        <div className="min-h-screen bg-slate-950 py-6 text-slate-100">
             <div className="mx-auto flex w-full max-w-full flex-col gap-6 px-4 lg:px-8">
                 <header className="flex flex-col gap-2">
-                    <h1 className="text-3xl font-semibold text-slate-900">NACA Office Network Health</h1>
-                    <p className="text-slate-600">
+                    <h1 className="text-3xl font-semibold text-slate-100">NACA Office Network Health</h1>
+                    <p className="text-slate-400">
                         Live office availability and latency summary
                     </p>
                 </header>
@@ -208,9 +263,9 @@ const MerakiStatusDashboard: React.FC = () => {
                                 {windowLabel ? `Window: ${windowLabel}` : 'Select a range to view recent uptime.'}
                             </CardDescription>
                         </div>
-                        <div className="flex flex-col gap-3 text-sm text-slate-600 md:flex-row md:items-center">
+                        <div className="flex flex-col gap-3 text-sm text-slate-400 md:flex-row md:items-center">
                             <label className="flex flex-col gap-1">
-                                <span className="font-medium">Time range</span>
+                                <span className="font-medium text-slate-200">Time range</span>
                                 <select
                                     value={range}
                                     onChange={(event) => setRange(event.target.value as RangeOption['value'])}
@@ -224,7 +279,7 @@ const MerakiStatusDashboard: React.FC = () => {
                                 </select>
                             </label>
                             <label className="flex flex-col gap-1">
-                                <span className="font-medium">Office</span>
+                                <span className="font-medium text-slate-200">Office</span>
                                 <select value={office} onChange={(event) => setOffice(event.target.value)} className="input">
                                     <option value="all">All offices</option>
                                     {officeOptions.map((name) => (
@@ -240,9 +295,9 @@ const MerakiStatusDashboard: React.FC = () => {
                         </div>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">
-                        {error && <div className="text-sm text-rose-600">{error}</div>}
+                        {error && <div className="text-sm text-rose-400">{error}</div>}
                         {!error && loading && !rows.length && (
-                            <div className="text-sm text-slate-500">Loading the latest SLA data…</div>
+                            <div className="text-sm text-slate-400">Loading the latest SLA data…</div>
                         )}
                         {summary && (
                             <div className="grid gap-4 md:grid-cols-3">
@@ -252,7 +307,7 @@ const MerakiStatusDashboard: React.FC = () => {
                             </div>
                         )}
                         {!loading && !error && !rows.length && (
-                            <div className="text-sm text-slate-500">No SLA data is available for the selected filters.</div>
+                            <div className="text-sm text-slate-400">No SLA data is available for the selected filters.</div>
                         )}
                     </CardContent>
                 </Card>
@@ -281,21 +336,41 @@ const MerakiStatusDashboard: React.FC = () => {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {sortedRows.map((row) => {
-                                        const badge = stateBadgeVariant(row)
+                                    {statusRows.map((row) => {
+                                        const badge = badgeForState(row.resolvedState)
+                                        const changedAt = row.changedAt
+                                        const detailTimestamp =
+                                            typeof changedAt === 'number' ? new Date(changedAt * 1000).toLocaleString() : null
+                                        const relative =
+                                            typeof changedAt === 'number'
+                                                ? formatRelativeTime(nowSeconds - changedAt)
+                                                : null
+                                        const detailLabel =
+                                            row.resolvedState === 'up'
+                                                ? 'Recovered at'
+                                                : row.resolvedState === 'down'
+                                                    ? 'Outage detected at'
+                                                    : 'Degraded at'
                                         return (
                                             <TableRow key={row.office}>
-                                                <TableCell className="p-3 font-medium text-slate-900">{row.office}</TableCell>
+                                                <TableCell className="p-3 font-medium text-slate-100">{row.office}</TableCell>
                                                 <TableCell className="p-3">
-                                                    <Badge variant={badge.variant}>{badge.label}</Badge>
+                                                    <div className="flex flex-col gap-1">
+                                                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                                                        {detailTimestamp && relative && (
+                                                            <div className="text-xs text-slate-500">
+                                                                {detailLabel} {detailTimestamp} ({relative})
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         )
                                     })}
-                                    {!rows.length && (
+                                    {!statusRows.length && (
                                         <TableRow>
-                                            <TableCell colSpan={2} className="p-6 text-center text-sm text-slate-500">
-                                                {loading ? 'Loading results…' : 'No results to display.'}
+                                            <TableCell colSpan={2} className="p-6 text-center text-sm text-slate-400">
+                                                {loading ? 'Loading results…' : 'All Offices OK ☀️'}
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -318,8 +393,8 @@ type SummaryStatProps = {
 
 const SummaryStat: React.FC<SummaryStatProps> = ({ label, value }) => (
     <div className="card p-4">
-        <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
-        <div className="mt-2 text-2xl font-semibold text-slate-900">{value}</div>
+        <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</div>
+        <div className="mt-2 text-2xl font-semibold text-slate-100">{value}</div>
     </div>
 )
 
