@@ -274,6 +274,21 @@ def sla(
           ) s
           JOIN offices o ON o.id = s.office_id
           WHERE rn = 1
+        ),
+        latest_samples AS (
+          SELECT o.name AS office,
+                 sample.gateway,
+                 sample.mx,
+                 sample.ipsec,
+                 sample.ts
+          FROM (
+            SELECT office_id, gateway, mx, ipsec, ts,
+                   ROW_NUMBER() OVER (PARTITION BY office_id ORDER BY ts DESC) AS rn
+            FROM samples
+            WHERE ts <= :t_end
+          ) sample
+          JOIN offices o ON o.id = sample.office_id
+          WHERE rn = 1
         )
         SELECT sla.office,
                sla.sec_up,
@@ -282,9 +297,14 @@ def sla(
                sla.sec_total,
                latest.current_state,
                latest.current_at,
-               latest.previous_state
+               latest.previous_state,
+               latest_samples.gateway AS latest_gateway,
+               latest_samples.mx AS latest_mx,
+               latest_samples.ipsec AS latest_ipsec,
+               latest_samples.ts AS latest_sample_ts
         FROM sla
         LEFT JOIN latest ON latest.office = sla.office
+        LEFT JOIN latest_samples ON latest_samples.office = sla.office
         ORDER BY sla.office;
         """
         rows = [dict(r) for r in c.execute(sql, args).fetchall()]

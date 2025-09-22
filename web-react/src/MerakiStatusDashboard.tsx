@@ -18,6 +18,10 @@ type SlaRow = {
     current_state?: KnownOfficeState | null
     current_at?: number | null
     previous_state?: KnownOfficeState | null
+    latest_gateway?: number | null
+    latest_mx?: number | null
+    latest_ipsec?: number | null
+    latest_sample_ts?: number | null
 }
 
 type SlaResponse = {
@@ -66,6 +70,10 @@ type EnrichedRow = SlaRow & {
     resolvedState: OfficeStatus
     changedAt: number | null
     previousState: KnownOfficeState | null
+    latestGateway: boolean | null
+    latestMx: boolean | null
+    latestIpsec: boolean | null
+    latestSampleTs: number | null
 }
 
 const formatPercent = (value: number) => `${(value * 100).toFixed(3)}%`
@@ -175,16 +183,35 @@ const MerakiStatusDashboard: React.FC = () => {
     const nowSeconds = Math.floor(now / 1000)
 
     const enrichedRows = useMemo<EnrichedRow[]>(() => {
+        const normalizeSample = (value?: number | null) => {
+            if (value === null || value === undefined) {
+                return null
+            }
+            return Boolean(value)
+        }
         return rows.map((row) => ({
             ...row,
             resolvedState: resolveCurrentState(row),
             changedAt: row.current_at ?? null,
             previousState: row.previous_state ?? null,
+            latestGateway: normalizeSample(row.latest_gateway),
+            latestMx: normalizeSample(row.latest_mx),
+            latestIpsec: normalizeSample(row.latest_ipsec),
+            latestSampleTs: row.latest_sample_ts ?? null,
         }))
     }, [rows])
 
     const officePoints = useMemo<OfficePoint[]>(() => {
-        return enrichedRows.map((row) => ({ name: row.office, status: row.resolvedState }))
+        return enrichedRows.map((row) => ({
+            name: row.office,
+            status: row.resolvedState,
+            details: {
+                gateway: row.latestGateway,
+                mx: row.latestMx,
+                ipsec: row.latestIpsec,
+                lastSampleTs: row.latestSampleTs,
+            },
+        }))
     }, [enrichedRows])
 
     const statusRows = useMemo(() => {
@@ -337,8 +364,8 @@ const MerakiStatusDashboard: React.FC = () => {
                                 </TableHeader>
                                 <TableBody>
                                     {statusRows.map((row) => {
+                                        const { changedAt } = row
                                         const badge = badgeForState(row.resolvedState)
-                                        const changedAt = row.changedAt
                                         const detailTimestamp =
                                             typeof changedAt === 'number' ? new Date(changedAt * 1000).toLocaleString() : null
                                         const relative =

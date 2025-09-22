@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { feature } from 'topojson-client'
 import type { FeatureCollection } from 'geojson'
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps'
@@ -7,9 +7,17 @@ import statesTopology from '../data/us-states-10m.json'
 
 export type OfficeStatus = 'up' | 'degraded' | 'down'
 
+export type OfficeDetails = {
+    gateway: boolean | null
+    mx: boolean | null
+    ipsec: boolean | null
+    lastSampleTs: number | null
+}
+
 export type OfficePoint = {
     name: string
     status: OfficeStatus
+    details: OfficeDetails
 }
 
 const OFFICE_COORDINATES: Record<string, [number, number]> = {
@@ -69,8 +77,13 @@ const STATUS_LABELS: Record<OfficeStatus, string> = {
 
 const statesFeatures = feature(statesTopology as any, (statesTopology as any).objects.states) as FeatureCollection
 
+type MarkerPoint = OfficePoint & { coordinates: [number, number] }
+
 const OfficeMap: React.FC<{ offices: OfficePoint[] }> = ({ offices }) => {
-    const markers = useMemo(() => {
+    const containerRef = useRef<HTMLDivElement | null>(null)
+    const [tooltip, setTooltip] = useState<{ left: number; top: number; marker: MarkerPoint } | null>(null)
+
+    const markers = useMemo<MarkerPoint[]>(() => {
         return offices
             .map((office) => {
                 const coordinates = OFFICE_COORDINATES[office.name]
@@ -79,12 +92,41 @@ const OfficeMap: React.FC<{ offices: OfficePoint[] }> = ({ offices }) => {
                 }
                 return { ...office, coordinates }
             })
-            .filter((item): item is OfficePoint & { coordinates: [number, number] } => Boolean(item))
+            .filter((item): item is MarkerPoint => Boolean(item))
     }, [offices])
+
+    const updateTooltip = useCallback((event: React.MouseEvent<SVGCircleElement>, marker: MarkerPoint) => {
+        if (!containerRef.current) {
+            return
+        }
+        const rect = containerRef.current.getBoundingClientRect()
+        setTooltip({
+            marker,
+            left: event.clientX - rect.left + 12,
+            top: event.clientY - rect.top + 12,
+        })
+    }, [])
+
+    const hideTooltip = useCallback(() => {
+        setTooltip(null)
+    }, [])
+
+    const detailLabel = useCallback((value: boolean | null) => {
+        if (value === null) {
+            return { label: 'Unknown', className: 'text-slate-400' }
+        }
+        if (value) {
+            return { label: 'Online', className: 'text-emerald-400' }
+        }
+        return { label: 'Offline', className: 'text-rose-400' }
+    }, [])
 
     return (
         <div className="flex h-full flex-col gap-4">
-            <div className="relative w-full overflow-hidden rounded-lg border border-slate-800 bg-slate-950/40">
+            <div
+                ref={containerRef}
+                className="relative w-full overflow-hidden rounded-lg border border-slate-800 bg-slate-950/40"
+            >
                 <div className="aspect-[16/7] w-full">
                     <ComposableMap
                         projection="geoAlbersUsa"
@@ -107,20 +149,62 @@ const OfficeMap: React.FC<{ offices: OfficePoint[] }> = ({ offices }) => {
                             ))
                         }
                     </Geographies>
-                    {markers.map((marker) => (
+                        {markers.map((marker) => (
                             <Marker key={marker.name} coordinates={marker.coordinates}>
-                                <circle r={6} fill={STATUS_COLORS[marker.status]} stroke="#f8fafc" strokeWidth={1.5} />
-                                <text
-                                    textAnchor="middle"
-                                    y={-12}
-                                    className="fill-slate-200 text-[10px] font-semibold drop-shadow"
-                                    style={{ pointerEvents: 'none' }}
-                                >
-                                    {marker.name}
-                                </text>
+                                <circle
+                                    r={6}
+                                    fill={STATUS_COLORS[marker.status]}
+                                    stroke="#f8fafc"
+                                    strokeWidth={1.5}
+                                    onMouseEnter={(event) => updateTooltip(event, marker)}
+                                    onMouseMove={(event) => updateTooltip(event, marker)}
+                                    onMouseLeave={hideTooltip}
+                                />
                             </Marker>
                         ))}
                     </ComposableMap>
+                    {tooltip && (
+                        <div
+                            className="pointer-events-none absolute z-10 min-w-[180px] max-w-xs rounded-md border border-slate-700 bg-slate-900/95 p-3 text-xs shadow-lg"
+                            style={{ left: tooltip.left, top: tooltip.top }}
+                        >
+                            <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+                                <span
+                                    className="h-2.5 w-2.5 rounded-full"
+                                    style={{ backgroundColor: STATUS_COLORS[tooltip.marker.status] }}
+                                />
+                                {tooltip.marker.name}
+                            </div>
+                            <div className="mt-2 space-y-1">
+                                {tooltip.marker.details ? (
+                                    <>
+                                        {(
+                                            [
+                                                ['Gateway', tooltip.marker.details.gateway],
+                                                ['MX', tooltip.marker.details.mx],
+                                                ['IPsec', tooltip.marker.details.ipsec],
+                                            ] as const
+                                        ).map(([label, value]) => {
+                                            const detail = detailLabel(value)
+                                            return (
+                                                <div key={label} className="flex justify-between gap-3 text-slate-300">
+                                                    <span>{label}</span>
+                                                    <span className={`font-medium ${detail.className}`}>{detail.label}</span>
+                                                </div>
+                                            )
+                                        })}
+                                        {tooltip.marker.details.lastSampleTs != null && (
+                                            <div className="pt-1 text-[10px] uppercase tracking-wide text-slate-500">
+                                                Sampled at {new Date(tooltip.marker.details.lastSampleTs * 1000).toLocaleTimeString()}
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="text-slate-400">No live telemetry available.</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
             <div className="flex flex-wrap gap-4 text-sm text-slate-300">

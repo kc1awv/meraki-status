@@ -207,6 +207,19 @@ def test_sla_window_and_metrics(api_client):
         resp = client.post("/ingest/state_change", json=event)
         assert resp.status_code == 200
 
+    # record latest sample data
+    sample_payload = [
+        {
+            "office": "HQ",
+            "gateway": True,
+            "mx": True,
+            "ipsec": True,
+            "ts": 140,
+        }
+    ]
+    resp = client.post("/ingest/tick", json=sample_payload)
+    assert resp.status_code == 200
+
     resp = client.get("/sla", params={"office": "HQ", "t_start": 10, "t_end": 150})
     assert resp.status_code == 200
     body = resp.json()
@@ -221,6 +234,10 @@ def test_sla_window_and_metrics(api_client):
     assert sla_entry["sec_total"] == 140
     assert sla_entry["current_state"] == "up"
     assert sla_entry["previous_state"] == "degraded"
+    assert sla_entry["latest_gateway"] == 1
+    assert sla_entry["latest_mx"] == 1
+    assert sla_entry["latest_ipsec"] == 1
+    assert sla_entry["latest_sample_ts"] == 140
     assert sla_entry["uptime_strict"] == pytest.approx(60 / 140)
     assert sla_entry["uptime_lenient"] == pytest.approx(120 / 140)
 
