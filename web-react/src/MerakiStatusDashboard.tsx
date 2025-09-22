@@ -34,8 +34,12 @@ const RANGE_OPTIONS: RangeOption[] = [
 
 
 const stateBadgeVariant = (row: SlaRow) => {
-    if (row.sec_down > 0) return { variant: 'destructive' as const, label: 'Down' }
-    if (row.sec_deg > 0) return { variant: 'secondary' as const, label: 'Degraded' }
+    if (row.sec_down > 0) {
+        return { variant: 'destructive' as const, label: 'Down' }
+    }
+    if (row.sec_deg > 0) {
+        return { variant: 'secondary' as const, label: 'Degraded' }
+    }
     return { variant: 'default' as const, label: 'Up' }
 }
 
@@ -45,7 +49,9 @@ const formatPercent = (value: number) => `${(value * 100).toFixed(3)}%`
 
 const formatDuration = (seconds: number) => {
     const total = Math.round(seconds)
-    if (total <= 0) return '0s'
+    if (total <= 0) {
+        return '0s'
+    }
     const units = [
         { label: 'd', value: 86400 },
         { label: 'h', value: 3600 },
@@ -60,7 +66,9 @@ const formatDuration = (seconds: number) => {
             parts.push(`${qty}${unit.label}`)
             remainder %= unit.value
         }
-        if (parts.length === 2) break
+        if (parts.length === 2) {
+            break
+        }
     }
     return parts.join(' ')
 }
@@ -87,13 +95,17 @@ const MerakiStatusDashboard: React.FC = () => {
         const t_end = now
         const t_start = now - selectedRange.seconds
         const params = new URLSearchParams({ t_start: String(t_start), t_end: String(t_end) })
-        if (office !== 'all') params.set('office', office)
+        if (office !== 'all') {
+            params.set('office', office)
+        }
 
         setLoading(true)
         setError(null)
         try {
             const resp = await fetch(`/api/sla?${params.toString()}`)
-            if (!resp.ok) throw new Error(`API request failed with status ${resp.status}`)
+            if (!resp.ok) {
+                throw new Error(`API request failed with status ${resp.status}`)
+            }
             const json: SlaResponse = await resp.json()
             setData(json)
             const officesFromResponse = json.sla.map((row) => row.office)
@@ -121,7 +133,9 @@ const MerakiStatusDashboard: React.FC = () => {
     const rows = data?.sla ?? []
 
     const summary = useMemo(() => {
-        if (!rows.length) return null
+        if (!rows.length) {
+            return null
+        }
         const totals = rows.reduce(
             (acc, row) => {
                 acc.up += row.sec_up
@@ -152,16 +166,16 @@ const MerakiStatusDashboard: React.FC = () => {
         <div className="min-h-screen bg-slate-100 py-10">
             <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4">
                 <header className="flex flex-col gap-2">
-                    <h1 className="text-3xl font-semibold text-slate-900">Meraki Network Health</h1>
+                    <h1 className="text-3xl font-semibold text-slate-900">NACA Office Network Health</h1>
                     <p className="text-slate-600">
-                        Live service availability and latency summary for every monitored office.
+                        Live office availability and latency summary
                     </p>
                 </header>
 
                 <Card>
                     <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
-                            <CardTitle>Service level agreement</CardTitle>
+                            <CardTitle>SLA</CardTitle>
                             <CardDescription>
                                 {windowLabel ? `Window: ${windowLabel}` : 'Select a range to view recent uptime.'}
                             </CardDescription>
