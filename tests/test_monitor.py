@@ -2,6 +2,7 @@ import asyncio
 import importlib.util
 from pathlib import Path
 
+import aiohttp
 import pytest
 
 
@@ -18,11 +19,16 @@ def _load_monitor_module():
 monitor = _load_monitor_module()
 
 
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
 def test_reconcile_updates_retry_thresholds(monkeypatch):
     calls = []
 
     class DummyIngestor:
-        async def post_json(self, path, payload):
+        async def post_json(self, path, payload, **kwargs):
             calls.append((path, payload))
 
     async def fake_probe(*args, **kwargs):
@@ -77,3 +83,83 @@ def test_reconcile_updates_retry_thresholds(monkeypatch):
         assert calls[-1][1]["retries_up"] == 4
 
     asyncio.run(run_test())
+
+
+@pytest.mark.anyio
+async def test_ingestor_post_json_logs_and_raises_with_session(monkeypatch, caplog):
+    ingestor = monitor.Ingestor("http://example", max_retries=2, retry_backoff=0)
+    await ingestor.__aenter__()
+
+    error = RuntimeError("boom")
+
+    class FailingRequest:
+        async def __aenter__(self):
+            raise error
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    def failing_post(*args, **kwargs):
+        return FailingRequest()
+
+    monkeypatch.setattr(ingestor._session, "post", failing_post)
+
+    caplog.set_level("ERROR")
+
+    try:
+        with pytest.raises(RuntimeError):
+            await ingestor.post_json(
+                "/ingest/state_change",
+                {"office": "HQ", "state": "down"},
+                office_name="HQ",
+            )
+    finally:
+        await ingestor.__aexit__(None, None, None)
+
+    log_text = " ".join(r.getMessage() for r in caplog.records)
+    assert "HQ" in log_text
+    assert "/ingest/state_change" in log_text
+    assert "attempt=2" in log_text
+
+
+@pytest.mark.anyio
+async def test_ingestor_post_json_logs_and_raises_without_session(monkeypatch, caplog):
+    ingestor = monitor.Ingestor("http://example", max_retries=2, retry_backoff=0)
+
+    error = aiohttp.ClientError("kaboom")
+
+    class FailingRequest:
+        async def __aenter__(self):
+            raise error
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class DummyClientSession:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            return FailingRequest()
+
+    monkeypatch.setattr(monitor.aiohttp, "ClientSession", DummyClientSession)
+
+    caplog.set_level("ERROR")
+
+    with pytest.raises(aiohttp.ClientError):
+        await ingestor.post_json(
+            "/offices",
+            {"name": "Remote", "gateway_ip": "1.2.3.4"},
+            office_name="Remote",
+        )
+
+    log_text = " ".join(r.getMessage() for r in caplog.records)
+    assert "Remote" in log_text
+    assert "/offices" in log_text
+    assert "attempt=2" in log_text

@@ -1,4 +1,5 @@
 import aiohttp, asyncio, contextlib, shutil, time, json, os, random, argparse, hashlib
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
@@ -7,6 +8,9 @@ import yaml
 FPING = shutil.which("fping")
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=5)
 API_BASE = os.environ.get("SLA_API", "http://localhost:8080")
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -64,9 +68,11 @@ async def limited_ping(
 
 # NEW: keep one session per process for efficiency
 class Ingestor:
-    def __init__(self, base: str):
+    def __init__(self, base: str, max_retries: int = 3, retry_backoff: float = 0.2):
         self.base = base
         self._session: Optional[aiohttp.ClientSession] = None
+        self.max_retries = max_retries
+        self.retry_backoff = retry_backoff
 
     async def __aenter__(self):
         # set default timeout for all requests
@@ -80,21 +86,42 @@ class Ingestor:
         if self._session:
             await self._session.close()
 
-    async def post_json(self, path: str, payload: dict | list):
-        if not self._session:
-            # fallback one-off if context not used
-            async with aiohttp.ClientSession(
-                raise_for_status=True,
-                timeout=REQUEST_TIMEOUT,
-            ) as sess:
-                with contextlib.suppress(Exception):
-                    async with sess.post(f"{self.base}{path}", json=payload) as resp:
-                        await resp.text()
-            return
+    async def post_json(
+        self,
+        path: str,
+        payload: dict | list,
+        *,
+        office_name: Optional[str] = None,
+    ):
+        endpoint = f"{self.base}{path}"
+        if office_name is None and isinstance(payload, dict):
+            office_name = payload.get("office") or payload.get("name")
 
-        with contextlib.suppress(Exception):
-            async with self._session.post(f"{self.base}{path}", json=payload) as resp:
+        async def _send(session: aiohttp.ClientSession):
+            async with session.post(endpoint, json=payload) as resp:
                 await resp.text()
+
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                if self._session:
+                    await _send(self._session)
+                else:
+                    async with aiohttp.ClientSession(
+                        raise_for_status=True,
+                        timeout=REQUEST_TIMEOUT,
+                    ) as sess:
+                        await _send(sess)
+                return
+            except Exception as exc:
+                logger.exception(
+                    "Failed to POST to %s (office=%s, attempt=%s)",
+                    endpoint,
+                    office_name,
+                    attempt,
+                )
+                if attempt >= self.max_retries:
+                    raise
+                await asyncio.sleep(self.retry_backoff * attempt)
 
 
 def load_yaml_config(path: str) -> dict:
@@ -104,6 +131,7 @@ def load_yaml_config(path: str) -> dict:
 
 def _office_default(field: str):
     return Office.__dataclass_fields__[field].default
+
 
 def hash_office_record(o: dict) -> str:
     # stable hash of relevant identity/fields (change if you add more columns)
@@ -173,6 +201,7 @@ class OfficeManager:
                         "retries_down": o.retries_down,
                         "retries_up": o.retries_up,
                     },
+                    office_name=o.name,
                 )
             elif self._hashes.get(name) != h:
                 # updated IPs (or future fields)
@@ -180,7 +209,9 @@ class OfficeManager:
                 o.gateway_ip = rec["gateway_ip"]
                 o.mx_ip = rec["mx_ip"]
                 o.tunnel_probe_ip = rec["tunnel_probe_ip"]
-                o.retries_down = rec.get("retries_down", _office_default("retries_down"))
+                o.retries_down = rec.get(
+                    "retries_down", _office_default("retries_down")
+                )
                 o.retries_up = rec.get("retries_up", _office_default("retries_up"))
                 self._hashes[name] = h
                 await self.ingestor.post_json(
@@ -193,6 +224,7 @@ class OfficeManager:
                         "retries_down": o.retries_down,
                         "retries_up": o.retries_up,
                     },
+                    office_name=o.name,
                 )
 
 
