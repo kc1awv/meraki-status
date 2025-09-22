@@ -1,7 +1,29 @@
 import React from 'react'
-export const Table = (p: React.HTMLAttributes<HTMLTableElement>) => <table className={`w-full border-collapse ${p.className || ''}`} {...p} />
-export const TableHeader = (p: React.HTMLAttributes<HTMLTableSectionElement>) => <thead {...p} />
-export const TableBody = (p: React.HTMLAttributes<HTMLTableSectionElement>) => <tbody {...p} />
-export const TableRow = (p: React.HTMLAttributes<HTMLTableRowElement>) => <tr className={`border-t border-slate-800 ${p.className || ''}`} {...p} />
-export const TableHead = (p: React.ThHTMLAttributes<HTMLTableCellElement>) => <th className={`border-b border-slate-800 bg-slate-900 text-left text-sm font-semibold text-slate-200 ${p.className || ''}`} {...p} />
-export const TableCell = (p: React.TdHTMLAttributes<HTMLTableCellElement>) => <td className={`p-3 align-middle ${p.className || ''}`} {...p} />
+const mergeClasses = (...classes: Array<string | undefined | null | false>) =>
+    classes.filter(Boolean).join(' ')
+
+export const Table = ({ className, ...rest }: React.HTMLAttributes<HTMLTableElement>) => (
+    <table className={mergeClasses('w-full border-collapse', className)} {...rest} />
+)
+
+export const TableHeader = (props: React.HTMLAttributes<HTMLTableSectionElement>) => <thead {...props} />
+
+export const TableBody = (props: React.HTMLAttributes<HTMLTableSectionElement>) => <tbody {...props} />
+
+export const TableRow = ({ className, ...rest }: React.HTMLAttributes<HTMLTableRowElement>) => (
+    <tr className={mergeClasses('border-t border-slate-800', className)} {...rest} />
+)
+
+export const TableHead = ({ className, ...rest }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
+    <th
+        className={mergeClasses(
+            'border-b border-slate-800 bg-slate-900 text-left text-sm font-semibold text-slate-200',
+            className
+        )}
+        {...rest}
+    />
+)
+
+export const TableCell = ({ className, ...rest }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
+    <td className={mergeClasses('p-3 align-middle', className)} {...rest} />
+)

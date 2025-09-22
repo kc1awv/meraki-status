@@ -369,7 +369,7 @@ const MerakiStatusDashboard: React.FC = () => {
                                     })}
                                     {!statusRows.length && (
                                         <TableRow>
-                                            <TableCell colSpan={2} className="p-6 text-center text-sm text-slate-400">
+                                            <TableCell colSpan={2} className="p-6 text-center text-lg text-slate-400">
                                                 {loading ? 'Loading results…' : 'All Offices OK ☀️'}
                                             </TableCell>
                                         </TableRow>
