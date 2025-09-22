@@ -132,6 +132,26 @@ const MerakiStatusDashboard: React.FC = () => {
 
     const rows = data?.sla ?? []
 
+    const sortedRows = useMemo(() => {
+        const getStatePriority = (row: SlaRow) => {
+            if (row.sec_down > 0) {
+                return 0
+            }
+            if (row.sec_deg > 0) {
+                return 1
+            }
+            return 2
+        }
+
+        return [...rows].sort((a, b) => {
+            const priorityDiff = getStatePriority(a) - getStatePriority(b)
+            if (priorityDiff !== 0) {
+                return priorityDiff
+            }
+            return a.office.localeCompare(b.office)
+        })
+    }, [rows])
+
     const summary = useMemo(() => {
         if (!rows.length) {
             return null
@@ -206,7 +226,7 @@ const MerakiStatusDashboard: React.FC = () => {
                                     ))}
                                 </select>
                             </label>
-                            <button onClick={refresh} className="btn self-start md:self-auto" disabled={loading}>
+                            <button onClick={refresh} className="btn self-start md:self-end" disabled={loading}>
                                 {loading ? 'Refreshing…' : 'Refresh'}
                             </button>
                         </div>
@@ -249,7 +269,7 @@ const MerakiStatusDashboard: React.FC = () => {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {rows.map((row) => {
+                                {sortedRows.map((row) => {
                                     const badge = stateBadgeVariant(row)
                                     return (
                                         <TableRow key={row.office}>
