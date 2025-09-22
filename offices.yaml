@@ -237,7 +237,7 @@ offices:
     retries_up: 1
   - name: Washington DC
     gateway_ip: 50.79.1.230
-    mx_ip: 50.79.1.235
+    mx_ip: 50.79.1.225
     tunnel_probe_ip: 172.31.70.1
     retries_down: 2
     retries_up: 1
