@@ -43,14 +43,20 @@ const RANGE_OPTIONS: RangeOption[] = [
 ]
 
 
-const badgeForState = (state: OfficeStatus) => {
+const badgeForState = (state: OfficeStatus, reason: string | null) => {
+    const baseLabel = state === 'down' ? 'Down' : state === 'degraded' ? 'Degraded' : 'Up'
+    const label = state === 'down' || state === 'degraded'
+        ? reason
+            ? `${baseLabel} · ${reason}`
+            : baseLabel
+        : baseLabel
     if (state === 'down') {
-        return { variant: 'destructive' as const, label: 'Down' }
+        return { variant: 'destructive' as const, label }
     }
     if (state === 'degraded') {
-        return { variant: 'secondary' as const, label: 'Degraded' }
+        return { variant: 'secondary' as const, label }
     }
-    return { variant: 'default' as const, label: 'Up' }
+    return { variant: 'default' as const, label }
 }
 
 const resolveCurrentState = (row: SlaRow): OfficeStatus => {
@@ -66,6 +72,44 @@ const resolveCurrentState = (row: SlaRow): OfficeStatus => {
     return 'up'
 }
 
+type StateFromSamples = {
+    state: OfficeStatus
+    reason: string | null
+}
+
+const determineStateFromSamples = (
+    gateway: boolean | null,
+    mx: boolean | null,
+    ipsec: boolean | null
+): StateFromSamples | null => {
+    const gatewayDown = gateway === false
+    const mxDown = mx === false
+    const ipsecDown = ipsec === false
+
+    if (gatewayDown) {
+        return { state: 'down', reason: 'Gateway offline' }
+    }
+
+    if (mxDown && ipsecDown) {
+        return { state: 'down', reason: 'MX & IPsec offline' }
+    }
+
+    if (mxDown) {
+        return { state: 'degraded', reason: 'MX offline' }
+    }
+
+    if (ipsecDown) {
+        return { state: 'degraded', reason: 'IPsec offline' }
+    }
+
+    const anyOnline = [gateway, mx, ipsec].some((value) => value === true)
+    if (anyOnline && !gatewayDown && !mxDown && !ipsecDown) {
+        return { state: 'up', reason: null }
+    }
+
+    return null
+}
+
 type EnrichedRow = SlaRow & {
     resolvedState: OfficeStatus
     changedAt: number | null
@@ -74,6 +118,7 @@ type EnrichedRow = SlaRow & {
     latestMx: boolean | null
     latestIpsec: boolean | null
     latestSampleTs: number | null
+    statusReason: string | null
 }
 
 const formatPercent = (value: number) => `${(value * 100).toFixed(3)}%`
@@ -189,16 +234,32 @@ const MerakiStatusDashboard: React.FC = () => {
             }
             return Boolean(value)
         }
-        return rows.map((row) => ({
-            ...row,
-            resolvedState: resolveCurrentState(row),
-            changedAt: row.current_at ?? null,
-            previousState: row.previous_state ?? null,
-            latestGateway: normalizeSample(row.latest_gateway),
-            latestMx: normalizeSample(row.latest_mx),
-            latestIpsec: normalizeSample(row.latest_ipsec),
-            latestSampleTs: row.latest_sample_ts ?? null,
-        }))
+        return rows.map((row) => {
+            const latestGateway = normalizeSample(row.latest_gateway)
+            const latestMx = normalizeSample(row.latest_mx)
+            const latestIpsec = normalizeSample(row.latest_ipsec)
+            const sampleState = determineStateFromSamples(latestGateway, latestMx, latestIpsec)
+            const fallbackState = resolveCurrentState(row)
+            const resolvedState = sampleState?.state ?? fallbackState
+            const fallbackReason =
+                fallbackState === 'down'
+                    ? 'Reported outage'
+                    : fallbackState === 'degraded'
+                        ? 'Reported degradation'
+                        : null
+            const statusReason = sampleState?.reason ?? fallbackReason
+            return {
+                ...row,
+                resolvedState,
+                changedAt: row.current_at ?? null,
+                previousState: row.previous_state ?? null,
+                latestGateway,
+                latestMx,
+                latestIpsec,
+                latestSampleTs: row.latest_sample_ts ?? null,
+                statusReason,
+            }
+        })
     }, [rows])
 
     const officePoints = useMemo<OfficePoint[]>(() => {
@@ -365,19 +426,31 @@ const MerakiStatusDashboard: React.FC = () => {
                                 <TableBody>
                                     {statusRows.map((row) => {
                                         const { changedAt } = row
-                                        const badge = badgeForState(row.resolvedState)
+                                        const badge = badgeForState(row.resolvedState, row.statusReason)
                                         const detailTimestamp =
                                             typeof changedAt === 'number' ? new Date(changedAt * 1000).toLocaleString() : null
                                         const relative =
                                             typeof changedAt === 'number'
                                                 ? formatRelativeTime(nowSeconds - changedAt)
                                                 : null
+                                        const previousStateLabel =
+                                            row.previousState === 'down'
+                                                ? 'Down'
+                                                : row.previousState === 'degraded'
+                                                    ? 'Degraded'
+                                                    : null
                                         const detailLabel =
                                             row.resolvedState === 'up'
-                                                ? 'Recovered at'
+                                                ? previousStateLabel
+                                                    ? `Recovered from ${previousStateLabel} at`
+                                                    : 'Recovered at'
                                                 : row.resolvedState === 'down'
                                                     ? 'Outage detected at'
                                                     : 'Degraded at'
+                                        const incidentElapsed =
+                                            typeof changedAt === 'number' ? Math.max(0, nowSeconds - changedAt) : null
+                                        const showIncidentElapsed =
+                                            incidentElapsed !== null && (row.resolvedState === 'down' || row.resolvedState === 'degraded')
                                         return (
                                             <TableRow key={row.office}>
                                                 <TableCell className="p-3 font-medium text-slate-100">{row.office}</TableCell>
@@ -387,6 +460,11 @@ const MerakiStatusDashboard: React.FC = () => {
                                                         {detailTimestamp && relative && (
                                                             <div className="text-xs text-slate-500">
                                                                 {detailLabel} {detailTimestamp} ({relative})
+                                                            </div>
+                                                        )}
+                                                        {showIncidentElapsed && (
+                                                            <div className="text-xs text-slate-500">
+                                                                Incident active for {formatDuration(incidentElapsed)}
                                                             </div>
                                                         )}
                                                     </div>
