@@ -14,8 +14,8 @@ offices:
     retries_down: 2
     retries_up: 1
   - name: Augusta
-    gateway_ip: 70.88.29.33
-    mx_ip: 70.88.29.34
+    gateway_ip: 70.88.29.38
+    mx_ip: 70.88.29.33
     tunnel_probe_ip: 172.31.31.1
     retries_down: 2
     retries_up: 1
@@ -27,7 +27,7 @@ offices:
     retries_up: 1
   - name: Baton Rouge
     gateway_ip: 184.178.211.225
-    mx_ip: 184.178.211.235
+    mx_ip: 184.178.211.239
     tunnel_probe_ip: 172.31.34.1
     retries_down: 2
     retries_up: 1

@@ -389,12 +389,23 @@ async def run(
             interval_s = base_cfg.get("broadcast_seconds", 15)
             try:
                 while not stop_event.is_set():
-                    summary = [
-                        {"office": o.name, "state": o.state, **o.last_sample}
-                        for o in mgr.list_offices()
-                    ]
+                    summary: List[dict] = []
+                    samples_ready = True
+                    for o in mgr.list_offices():
+                        record = {"office": o.name, "state": o.state}
+                        if all(k in o.last_sample for k in ("gateway", "mx", "ipsec", "ts")):
+                            record.update(o.last_sample)
+                        else:
+                            samples_ready = False
+                        summary.append(record)
                     print(json.dumps({"event": "tick", "status": summary}))
-                    await ingestor.post_json("/ingest/tick", summary)
+                    
+                    if samples_ready:
+                        await ingestor.post_json("/ingest/tick", summary)
+                    else:
+                        logger.debug(
+                            "Skipping tick ingest until all offices have an initial sample"
+                        )
                     # wait until either stop is set or the interval expires
                     with contextlib.suppress(asyncio.TimeoutError):
                         await asyncio.wait_for(stop_event.wait(), timeout=interval_s)
